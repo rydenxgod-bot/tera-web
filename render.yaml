@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: terabox-downloader
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
