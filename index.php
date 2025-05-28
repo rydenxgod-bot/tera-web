@@ -1,127 +1,77 @@
 <?php
-$title = $thumbnail = $filesize = $downloadUrl = $watchUrl = "";
-$error = "";
+$videoURL = "";
 
-if ($_SERVER["REQUEST_METHOD"] === "POST" && !empty($_POST["url"])) {
-    $videoUrl = trim($_POST["url"]);
-    if (!filter_var($videoUrl, FILTER_VALIDATE_URL)) {
-        $error = "Please enter a valid Terabox URL.";
-    } else {
-        $apiEndpoint = "https://ashlynn.serv00.net/Ashlynnterabox.php/?url=" . urlencode($videoUrl);
-
-        // Initialize cURL session
-        $ch = curl_init($apiEndpoint);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        $response = curl_exec($ch);
-        $curlErr = curl_errno($ch);
-        curl_close($ch);
-
-        // Fallback to file_get_contents if cURL fails
-        if ($curlErr && empty($response)) {
-            $response = @file_get_contents($apiEndpoint);
-        }
-
-        if (!$response) {
-            $error = "Could not contact the API. Please try again later.";
-        } else {
-            $data = json_decode($response, true);
-            if (json_last_error() || empty($data)) {
-                $error = "Invalid response from API.";
-            } else {
-                // Extract video details
-                $title       = $data['title']      ?? $data['fileName']            ?? "Unknown Title";
-                $thumbnail   = $data['thumbnail']  ?? "";
-                $filesize    = $data['fileSize']   ?? $data['filesize']            ?? "";
-                $downloadUrl = $data['downloadUrl']?? $data['downloadLink']         ?? "";
-                $watchUrl    = $data['videos'][0]['url'] ?? $downloadUrl;
-
-                // Ensure at least download URL exists
-                if (!$downloadUrl) {
-                    $error = "Download link not found in API response.";
-                }
-            }
-        }
+if ($_SERVER["REQUEST_METHOD"] === "POST" && !empty($_POST["link"])) {
+    $userLink = trim($_POST["link"]);
+    if (filter_var($userLink, FILTER_VALIDATE_URL)) {
+        $videoURL = "https://tera-api-thory.vercel.app/api?api_key=lifetime&url=" . urlencode($userLink);
     }
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Terabox Downloader</title>
+  <meta charset="UTF-8">
+  <title>🔥 Terabox Video Player</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Reset & Base */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, #1f1c2c, #928dab);
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      color: #ececec;
-      padding: 2rem;
-    }
-    a {
-      text-decoration: none;
+      background: linear-gradient(135deg, #1f1c2c, #928dab);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+      min-height: 100vh;
     }
 
-    /* Container */
-    .card {
+    .container {
       background: rgba(255, 255, 255, 0.05);
       border-radius: 16px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(8px);
-      width: 100%;
-      max-width: 700px;
       padding: 2rem;
+      max-width: 720px;
+      width: 100%;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(8px);
+      text-align: center;
       animation: fadeIn 0.6s ease-out;
     }
 
     @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     h1 {
-      text-align: center;
-      margin-bottom: 1.5rem;
       font-size: 2rem;
-      letter-spacing: 1px;
+      margin-bottom: 0.5rem;
     }
 
-    /* Form */
-    .form-group {
+    p.subtitle {
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+      color: #ccc;
+    }
+
+    form {
       display: flex;
-      gap: 0.5rem;
       flex-direction: column;
-      margin-bottom: 1rem;
+      gap: 1rem;
+      margin-bottom: 2rem;
     }
-    .form-group input {
+
+    input[type="url"] {
       padding: 0.75rem 1rem;
-      border: none;
       border-radius: 8px;
+      border: none;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
       font-size: 1rem;
-      outline: none;
     }
-    .form-group input[type="url"] {
-      background: rgba(255, 255, 255, 0.1);
-      color: #ececec;
-    }
-    .form-group button {
+
+    button {
       padding: 0.75rem;
       background: #ff6a00;
       color: #fff;
@@ -131,122 +81,59 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !empty($_POST["url"])) {
       cursor: pointer;
       transition: background 0.3s ease;
     }
-    .form-group button:hover {
+
+    button:hover {
       background: #e65c00;
     }
 
-    /* Error */
-    .error {
-      text-align: center;
-      color: #ff4e4e;
-      margin-bottom: 1rem;
-    }
-
-    /* Result */
-    .result {
-      margin-top: 1.5rem;
-      text-align: center;
-    }
-    .result img {
-      width: 100%;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-    }
-    .result h2 {
-      font-size: 1.5rem;
-      margin-bottom: 0.5rem;
-      color: #fff;
-    }
-    .result p {
-      font-size: 1rem;
-      margin-bottom: 1rem;
-      color: #ccc;
-    }
-    .btn-group {
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-    .btn-group a {
-      flex: 1;
-      padding: 0.75rem 1rem;
-      border-radius: 8px;
-      font-weight: 600;
-      transition: transform 0.2s;
-      text-align: center;
-    }
-    .btn-watch {
-      background: #2196f3;
-      color: #fff;
-    }
-    .btn-download {
-      background: #4caf50;
-      color: #fff;
-    }
-    .btn-group a:hover {
-      transform: translateY(-2px);
-    }
-
-    /* Video Player */
-    .video-player {
-      margin-top: 1rem;
-    }
     video {
       width: 100%;
-      border-radius: 8px;
-      outline: none;
+      max-width: 640px;
+      border-radius: 12px;
+      margin-top: 1rem;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
     }
 
-    /* Footer */
     footer {
       margin-top: 2rem;
       text-align: center;
-      font-weight: 700;
-      color: #ececec;
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+
+    .tagline {
+      margin-top: 0.5rem;
+      font-size: 1rem;
+      color: #90caf9;
+      font-weight: 500;
+    }
+
+    @media(max-width: 600px) {
+      h1 { font-size: 1.6rem; }
+      input[type="url"] { font-size: 0.9rem; }
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Terabox Video Tool</h1>
+  <div class="container">
+    <h1>🎬 Welcome to Terabox Player</h1>
+    <p class="subtitle">Free. Fast. Secure Streaming. Just paste your Terabox link 👇</p>
+    <p class="tagline">Made with ❤️ by RydenXGod</p>
 
-    <form method="post">
-      <div class="form-group">
-        <input type="url" name="url" placeholder="Paste your Terabox URL here" required>
-      </div>
-      <div class="form-group">
-        <button type="submit">Fetch Details</button>
-      </div>
+    <form method="POST">
+      <input type="url" name="link" placeholder="Paste your Terabox URL here" required>
+      <button type="submit">▶ Start Streaming</button>
     </form>
 
-    <?php if ($error): ?>
-      <div class="error"><?= htmlspecialchars($error) ?></div>
+    <?php if ($videoURL): ?>
+      <h2>Now Playing:</h2>
+      <video controls autoplay>
+        <source src="<?= htmlspecialchars($videoURL) ?>" type="video/mp4">
+        Your browser does not support video streaming.
+      </video>
     <?php endif; ?>
 
-    <?php if (!empty($downloadUrl)): ?>
-      <div class="result">
-        <?php if ($thumbnail): ?>
-          <img src="<?= htmlspecialchars($thumbnail) ?>" alt="Thumbnail">
-        <?php endif; ?>
-        <h2><?= htmlspecialchars($title) ?></h2>
-        <?php if ($filesize): ?>
-          <p>Size: <?= htmlspecialchars($filesize) ?></p>
-        <?php endif; ?>
-        <div class="btn-group">
-          <a href="<?= htmlspecialchars($watchUrl) ?>" target="_blank" class="btn-watch">► Watch Now</a>
-          <a href="<?= htmlspecialchars($downloadUrl) ?>" class="btn-download">⬇ Download Now</a>
-        </div>
-        <div class="video-player">
-          <video controls poster="<?= htmlspecialchars($thumbnail) ?>">
-            <source src="<?= htmlspecialchars($watchUrl) ?>" type="video/mp4">
-            Your browser does not support the video tag.
-          </video>
-        </div>
-      </div>
-    <?php endif; ?>
-
-    <footer>Developer RydenXGod</footer>
+    <footer>© <?= date("Y") ?> Terabox Player — All rights reserved.</footer>
   </div>
 </body>
 </html>
